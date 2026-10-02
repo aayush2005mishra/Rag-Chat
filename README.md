@@ -1,23 +1,51 @@
-# Rag-Chat
-RAG chat app built with Streamlit and Google Gemini. Upload PDFs/text, ask questions, get answers with sources and similarity scores.
-RAG Chat: Ask Your Documents
+# RAG Chat
 
-A Retrieval-Augmented Generation (RAG) web app built with Python and Streamlit. Users upload .txt or .pdf files, or paste text, and then ask questions in a chat interface. The app answers using only the content of those documents, and shows which parts of the documents it used.
+A Streamlit RAG app (powered by the free Google Gemini API) that lets you upload or paste documents, ask questions, and get answers grounded only in your content, with sources and similarity scores.
 
-How it works
+## Install
 
-Documents are split into overlapping chunks (500 characters, 80 overlap).
-Each chunk is converted to an embedding with Google's gemini-embedding-001 model.
-Vectors are normalized and stored in memory, and a question is matched to the top-K chunks with cosine similarity (NumPy).
-The matching chunks are sent to a Gemini chat model with a strict prompt: answer only from the context, otherwise say "Not in the provided documents."
-The answer streams token by token, with a Sources panel showing the file name, similarity score and a chunk preview.
+```bash
+pip install -r requirements.txt
+```
 
-Features
+Get a free key at https://aistudio.google.com/apikey (new `AQ.` keys work) and put it in the `.env` file:
 
-PDF and text upload, plus pasted text
-Streaming answers with source citations like [1], [2]
-Adjustable Top-K (1-10) and a toggle to show or hide sources
-Chunk counter, list of indexed sources, and a Clear All button
-Retries when the API rate limit is hit, and an automatic fallback if a Gemini model name is unavailable
-RAG logic kept separate from the UI (rag_core.py has no Streamlit imports), so it can be reused
+```
+GEMINI_API_KEY=your-key-here
+```
 
+## Run
+
+```bash
+streamlit run app.py
+```
+
+## How to Use
+
+1. **Upload** `.txt`/`.pdf` files (or paste text) in the sidebar and click the index button.
+2. **Ask** a question in the chat box.
+3. **See sources**: expand "📎 Sources" under each answer to view the source name, similarity score, and chunk preview.
+
+## Architecture
+
+```
+ ┌────────────┐   text    ┌─────────────┐  chunks  ┌───────────────────────┐
+ │ Upload /   │ ────────▶ │ chunk_text  │ ───────▶ │ embed_texts           │
+ │ Paste Text │           │ (500 / 80)  │          │ gemini-embedding-001│
+ └────────────┘           └─────────────┘          └──────────┬────────────┘
+                                                              │ vectors
+                                                              ▼
+ ┌────────────┐  query    ┌─────────────┐  top-K   ┌──────────────────────┐
+ │ User       │ ────────▶ │ embed query │ ───────▶ │ VectorStore.search   │
+ │ Question   │           └─────────────┘          │ (cosine similarity)  │
+ └─────▲──────┘                                    └──────────┬───────────┘
+       │                                                      │ chunks + scores
+       │ streamed answer          ┌───────────────────────────▼────────────┐
+       └──────────────────────────│ Gemini chat model (context-only prompt)      │
+                                  └────────────────────────────────────────┘
+```
+
+## Files
+
+- `app.py`: Streamlit UI only
+- `rag_core.py`: chunking, embeddings, vector store, RAG engine (no Streamlit imports)
